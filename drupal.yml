@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: drupal
+  labels:
+    app: drupal1
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: drupal1
+    tier: frontend
+  type: LoadBalancer
+---
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: drupal
+  labels:
+    app: drupal1
+spec:
+  selector:
+    matchLabels:
+      app: drupal1
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: drupal1
+        tier: frontend
+    spec:
+      containers:
+      - image: drupal:latest
+        name: drupal
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+             name: mysql-password
+             key: rootpass
+        - name: MYSQL_USER
+          value: redhat
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-pass
+              key: password
+        - name: MYSQL_DATABASE
+          value: mydb
+        ports:
+        - containerPort: 80
+          name: drupal
+        volumeMounts:
+        - name: drupal-persistent-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: drupal-persistent-storage
+        persistentVolumeClaim:
+          claimName: efs-drupal
